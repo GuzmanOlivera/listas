@@ -13,7 +13,7 @@ $dbh = $conexion->getConnection();
     //$sql = "SELECT p.ci, p.mail, p.nombre, p.segundoNombre, p.apellido, p.segundoApellido, r.nombreRegion, n.nroCargo, i.nombre as institucionalDSC from persona as p JOIN nroCargo as n on n.ciNroCargo=p.ci LEFT JOIN InstitucionalDSC_Persona as i on i.ciPersona=p.ci;";
     //$sql = "SELECT p.ci, p.mail, p.nombre, p.segundoNombre, p.apellido, p.segundoApellido, r.nombreRegion, n.nroCargo, i.nombre as institucionalDSC from persona as p JOIN regionPersona as r on p.ci=r.ciRegionPersona JOIN nroCargo as n on n.ciNroCargo=p.ci LEFT JOIN InstitucionalDSC_Persona as i on i.ciPersona=p.ci;";
     $sql = "SELECT p.ci, p.mail, p.nombre, p.segundoNombre, p.apellido, p.segundoApellido from persona as p";
-    $header = "ci,mail,nombre,segundoNombre,apellido,segundoApellido,nroCargo,institucionalDSC" . "\n";
+    $header = "ci,mail,nombre,segundoNombre,apellido,segundoApellido" . "\n";
 
     $sth = $dbh->prepare($sql);
 

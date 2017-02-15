@@ -174,19 +174,14 @@ function quitarElementos($stringLinea, $cabecera, $elementos) { // FIXME: Hacer 
 function quitarElementosDevuelveStrings($stringLinea, $cabecera, $elementos) { // FIXME: Hacer mas dinamico 
     
     $cabecera_array = string2array($cabecera);
-    print_r($cabecera_array);
-    
     $lineaArray = array_map('trim', str_getcsv($stringLinea,',', '"'));
     
     $largo = count($elementos);
-    echo "Lago es" . $largo;
     
     $copiaElementos = clonarArray($elementos);
     for ($i=0; $i<$largo;$i++) {
         //$pos = array_search($elementos[$i], $lineaArray);
         $pos = array_search($elementos[$i], $cabecera_array);
-        echo '<br>';
-        echo "La posicion es " . $pos;
         unset($lineaArray[$pos]);
         unset($cabecera_array[$pos]);
         array_del($copiaElementos,$elementos[$i]);
@@ -222,7 +217,6 @@ function quitarElementosDevuelveStrings($stringLinea, $cabecera, $elementos) { /
     return $resultado;
     //return str_replace("'NULL'",'NULL', $aux);
 }
-
 
 function updateValue($string) {
     if ($string==""){
@@ -343,12 +337,22 @@ function armarColVal($arrayCabecera, $lineaArray) {
     return $stringColVal;
 }
 
+function buscarPersonaSinMail($dbh,$ci){ //Busca si la persona estaba ingresada como sinMail, en caso afirmativo devuelve true sino false
+    $sth = $dbh->prepare("SELECT * FROM personaSinMail WHERE ci='$ci'");
+    $sth->execute();
+    return $sth->rowCount() > 0;
+}
+
+function borrarPersonaSinMail($dbh,$ci) { //Borra a la persona de la tabla sinMail
+    $sql = "DELETE FROM personaSinMail where ci=$ci";
+    $colField = $dbh->prepare($sql);
+    $colField->execute();
+}
+
 //Considerar lo siguiente:
 //Los cargos que empiezan con 6 son no docente
 //stringLinea nunca puede ser vacio cuando se invoca a esta funcion
 function guardarLineaEnBD($stringLinea, $cabecera, $dbh) {
-
-
     $lineaArray = array_map('trim', str_getcsv($stringLinea,',', '"'));
 
     $posNroCargo = buscarPosNroCargo($cabecera);
@@ -369,7 +373,6 @@ function guardarLineaEnBD($stringLinea, $cabecera, $dbh) {
     }
     $institucionalDSC = $lineaArray[$posInstitucionalDSC];
     $ci = $lineaArray[$posCI];
-
     
     $arrayCabecera = string2array($cabecera,',');
         
@@ -404,83 +407,76 @@ function guardarLineaEnBD($stringLinea, $cabecera, $dbh) {
        // Insertamos en tabla InstitucionalDSC
        // Si no existe lo intertamos
        $sql = "INSERT IGNORE INTO InstitucionalDSC(Nombre) SELECT * FROM (SELECT '$institucionalDSC') AS tmp WHERE NOT EXISTS (SELECT Nombre from InstitucionalDSC WHERE Nombre='$institucionalDSC')";
-       echo $sql;
-       echo "<br>";
        $colField = $dbh->prepare($sql);
        $colField->execute();
        
        // Actualizamos tabla nroCargo
        $sql = "INSERT IGNORE nroCargo(nroCargo,ciNroCargo) VALUES($nroCargo,$ci);";
-       echo $sql;
-       echo "<br>";
-
        $colField = $dbh->prepare($sql);
        $colField->execute();
 
        // Insertamos en la tabla persona
        $sql = "INSERT IGNORE INTO persona($stringCabecera) VALUES($stringLinea)";
        echo $sql;
-       echo "<br>";
        $colField = $dbh->prepare($sql);
        $colField->execute();
        
        // Actualizamos tabla persona
        $sql = "UPDATE IGNORE persona SET " . $stringColVal . " WHERE " . $stringCondicion . ";" ;
-       echo $sql;
-       echo "<br>";
-       $colField = $dbh->prepare($sql);
-       $colField->execute();
-    }
-    else {
-   
-        //  Ejemplo de stringLinea
-        //  28741991,Acosta,Larrosa,Martin,Ignacio,tincho977@hotmail.com,555306,T/C Área Técnico Profesional 
-        //  Ejemplo de cabecera
-        //  ci,apellido,segundoApellido,nombre,segundoNombre,mail,nroCargo,institucionalDSC 
-        
-        // Insertamos en InstitucionalDSC por si se agrega uno nuevo
-        $sql = "INSERT IGNORE INTO InstitucionalDSC(Nombre) SELECT * FROM (SELECT '$institucionalDSC') AS tmp WHERE NOT EXISTS (SELECT Nombre from InstitucionalDSC WHERE Nombre='$institucionalDSC')";
-        echo $sql;
-        echo "<br>";
-        $colField = $dbh->prepare($sql);
-        $colField->execute();
-
-        // Actualizamos tabla nroCargo
-        $sql = "INSERT IGNORE nroCargo(nroCargo,ciNroCargo) VALUES ($nroCargo,$ci);";
-        echo $sql;
-        echo "<br>";
-
-        $colField = $dbh->prepare($sql);
-        $colField->execute();
-      
-        echo "<br>";
-        echo "<br>";
-        echo $stringLinea;
-    
-     // Insertamos en la tabla persona
-       echo "LALALALALA " . $stringLinea;
-        
-       $sql = "INSERT IGNORE INTO persona($stringCabecera) VALUES($stringLinea)";
-       echo $sql;
-       echo "<br>";
-       $colField = $dbh->prepare($sql);
-       $colField->execute();
-
-              // Actualizamos tabla persona
-       $sql = "UPDATE IGNORE persona SET " . $stringColVal . " WHERE " . $stringCondicion . ";" ;
-       echo $sql;
-       echo "<br>";
        $colField = $dbh->prepare($sql);
        $colField->execute();
        
-                
-        // Actualizamos la tabla docente
-        $sql = "INSERT IGNORE docente(ciDocente) VALUES($ci);";
-        echo $sql;
-        echo "<br>";
-        $colField = $dbh->prepare($sql);
-        $colField->execute();
+       // Insertamos en tabla InstitucionalDSC_Persona
+       $sql = "INSERT IGNORE INTO InstitucionalDSC_Persona(nombre,ciPersona,nroCargo) VALUES('$institucionalDSC',$ci,$nroCargo)";
 
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+       
+    }
+    else {
+  
+       //  Ejemplo de stringLinea
+       //  28741991,Acosta,Larrosa,Martin,Ignacio,tincho977@hotmail.com,555306,T/C Área Técnico Profesional 
+       //  Ejemplo de cabecera
+       //  ci,apellido,segundoApellido,nombre,segundoNombre,mail,nroCargo,institucionalDSC 
+        
+       // Insertamos en InstitucionalDSC por si se agrega uno nuevo
+       $sql = "INSERT IGNORE INTO InstitucionalDSC(Nombre) SELECT * FROM (SELECT '$institucionalDSC') AS tmp WHERE NOT EXISTS (SELECT Nombre from InstitucionalDSC WHERE Nombre='$institucionalDSC')";
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+
+       // Actualizamos tabla nroCargo
+       $sql = "INSERT IGNORE nroCargo(nroCargo,ciNroCargo) VALUES ($nroCargo,$ci);";
+      
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+      
+        
+       $sql = "INSERT IGNORE INTO persona($stringCabecera) VALUES($stringLinea)";
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+
+       // Actualizamos tabla persona
+       $sql = "UPDATE IGNORE persona SET " . $stringColVal . " WHERE " . $stringCondicion . ";" ;
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+                 
+       // Actualizamos la tabla docente
+       $sql = "INSERT IGNORE docente(ciDocente) VALUES($ci);";
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+        
+       // Insertamos en tabla InstitucionalDSC_Persona
+       $sql = "INSERT IGNORE INTO InstitucionalDSC_Persona(nombre,ciPersona,nroCargo) VALUES('$institucionalDSC',$ci,$nroCargo)";
+
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+
+       
+    }
+    // Si la persona sin mail esta en la base de datos entonces la borramos
+    if (buscarPersonaSinMail($dbh, $ci)) {
+        borrarPersonaSinMail($dbh, $ci);
     }
 }
 
@@ -525,6 +521,12 @@ function guardarLineaEnBDMismaPersona($stringLinea,$cabecera,$dbh) {
        $colField = $dbh->prepare($sql);
        $colField->execute();
        
+       // Insertamos en tabla InstitucionalDSC_Persona
+       $sql = "INSERT IGNORE INTO InstitucionalDSC_Persona(nombre,ciPersona,nroCargo) VALUES('$institucionalDSC',$ci,$nroCargo)";
+
+       $colField = $dbh->prepare($sql);
+       $colField->execute();
+       
        // Actualizamos en tabla InstitucionalDSC_Persona
        $sql = "UPDATE IGNORE InstitucionalDSC_Persona SET nombre='$institucionalDSC' where ciPersona=$ci";
        echo $sql;
@@ -555,20 +557,24 @@ function guardarLineaEnBDMismaPersona($stringLinea,$cabecera,$dbh) {
         $colField = $dbh->prepare($sql);
         $colField->execute();
 
-       // Actualizamos tabla nroCargo
-       $sql = "UPDATE IGNORE nroCargo SET nroCargo=$nroCargo where ciNroCargo=$ci;";
-       echo $sql;
-       echo "<br>";
+        // Insertamos en tabla InstitucionalDSC_Persona
+        $sql = "INSERT IGNORE INTO InstitucionalDSC_Persona(nombre,ciPersona,nroCargo) VALUES('$institucionalDSC',$ci,$nroCargo)";
 
-       $colField = $dbh->prepare($sql);
-       $colField->execute();
+        $colField = $dbh->prepare($sql);
+        $colField->execute();
 
         
-        // Actualizar tabla persona
-        echo "<br>";
-        echo "<br>";
-        echo $stringLinea;
-                
+        
+        // Actualizamos en tabla InstitucionalDSC_Persona
+        $sql = "UPDATE IGNORE InstitucionalDSC_Persona SET nombre='$institucionalDSC' where ciPersona=$ci";
+        
+        // Actualizamos tabla nroCargo
+        $sql = "UPDATE IGNORE nroCargo SET nroCargo=$nroCargo where ciNroCargo=$ci;";
+
+        $colField = $dbh->prepare($sql);
+        $colField->execute();
+        
+        // Actualizar tabla persona                
         // Actualizamos la tabla docente
         // El update en la tabla docente no seria necesario ya que el update de la constraint de la fk de la tabla persona funciona con oncascade
         
@@ -576,39 +582,15 @@ function guardarLineaEnBDMismaPersona($stringLinea,$cabecera,$dbh) {
        }
 }
 
-
 function guardarLineaEnBDSinMail($stringLinea,$cabecera,$dbh) {
-    # echo "Se guarda en BD Sin mail";
-    echo "<br>";
-    echo "<br>";
-    echo "<br>";
-    echo "Linea que no nos deja insertar";
-    echo "<br>";
-    echo $stringLinea;
-    echo "<br>";
-    echo "<br>";
-    echo "<br>";
-    echo "<br>";
-
     $stringLinea = fixNullValues($stringLinea);
-
-    echo "<br>";
-    echo "Linea despues de fixNullvalues";
-    echo "<br>";
-    echo $stringLinea;
-    echo "<br>";
-    
     $sql = "INSERT IGNORE INTO personaSinMail($cabecera) VALUES($stringLinea)"; //FIXME: ver que forma hay de actualizar a los sinMail.
-    echo $sql;
-    echo "<br>";
-
     $colField = $dbh->prepare($sql);
     $colField->execute();
 }
 
 // Esta funcion chequea que las celdas de la cabecera coincidan con los nombres de atributos de la base de datos.
 function chequearCabecera($cabecera, $dbh) {
-
   $counter = 0;
   $sql="";
   echo count($cabecera);
@@ -635,7 +617,6 @@ function chequearCabecera($cabecera, $dbh) {
 
 function planillaFiltrada($arrayPlanilla,$dbh) {
   $ciInsertadas = array(); 
- // $arrayPlanillaCopia = clonarArray($arrayPlanilla);
 
   $resultadoRepetidos = array();
   $resultadoSinMails = array();
@@ -643,7 +624,7 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
 
   $cabeceraArraySinEspacios = array_map('trim', string2array($cabecera));
  /*
-  if (chequearCabecera($cabeceraArraySinEspacios,$dbh)) {
+  if (chequearCabecera($cabeceraArraySinEspacios,$dbh)) { //FIXME: Chequear cabecera
      echo "OK";
   }
   else {
@@ -652,7 +633,6 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
 */
   $cabecera = array2string(",",$cabeceraArraySinEspacios); //String cabecera sin espacios
   $cabecera = str_replace('"', '', $cabecera);
-
 
   $posCedula = buscarPosCI($cabecera);
   if ($posCedula==-1) {
@@ -694,96 +674,40 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
         $resultadoRepetidos[] = $lineaStringPlanilla; // Los repetidos los guardamos en un CSV
     }
   }
-  print_r($resultadoRepetidos);
-  
-
- /*
-  for($i = 1; $i < count($arrayPlanilla); ++$i) {
-    $lineaStringPlanilla = $arrayPlanilla[$i];
-    if ($lineaStringPlanilla=="") {
-       continue;
-    }
-
-    $arrayLinea = str_getcsv($lineaStringPlanilla, ',', '"');
-
-#string2array($lineaStringPlanilla);
-
-    $cedula = $arrayLinea[$posCedula];
-    $mail = $arrayLinea[$posMail];
-    if ($mail=="") {
-          $resultadoSinMails[] = $lineaStringPlanilla;
-    }
-    $ocurrencias = 0;
-    if ($cedula=="") {
-      die("CI vacia en $lineaStringPlanilla");
-
-    }
-    
-    
-    
-    for($j = 1; $j < count($arrayPlanillaCopia); $j++){ 
-        $lineaPlanillaCopia = $arrayPlanillaCopia[$j];
-        if ($lineaPlanillaCopia=="") {
-          
-          continue;
-        }
-        $arrayLineaCopia = str_getcsv($lineaPlanillaCopia,',','"');
-        $cedulaCopia = $arrayLineaCopia[$posCedula];
-        if ($cedulaCopia==$cedula) {
-           $ocurrencias++;
-        }
-        // Siempre va a entrar en este if, al menos una vez. Esta linea sera la que consideremos para guardar en la BD.
-        // Si luego hay otras lineas con la misma CI entonces no las guardamos. Esto se controla mas abajo con el condicional de ocurrencias>1
-        if ($ocurrencias==1) {
-           $lineaCIUnica = $lineaStringPlanilla;
-        }
-    }  
-    // En resumen, si es linea repetida la agregamos al array de lineas repetidas
-    if (($ocurrencias>1) && ($lineaStringPlanilla!=$lineaCIUnica)) {
-       $resultadoRepetidos[] = $lineaStringPlanilla; // Los repetidos los guardamos en un CSV
-    }
-    elseif(($ocurrencias==1) && ($mail!="")){
-       guardarLineaEnBD($lineaStringPlanilla, $cabecera, $dbh);
-    }
-    elseif(($ocurrencias==1) && ($mail=="")){
-       guardarLineaEnBDSinMail($lineaStringPlanilla, $cabecera, $dbh); //Hay que crear tabla para los sin mail, vamos a hacera facil :)
-    }
-  }
-  
-  */
 }
 
-#mkdir("/upload", 0775);
 $allowedExts = array("csv");
 $temp = explode(".", $_FILES["file"]["name"]);
 $extension = end($temp);
 
-#unlink("upload/" . $_FILES["file"]["name"]);
-
-if (($_FILES["file"]["type"] == "text/csv") && (in_array($extension, $allowedExts))) {
+$mimes = array('application/vnd.ms-excel','text/plain','text/csv','text/tsv');
+if ((in_array($_FILES['file']['type'],$mimes)) && (in_array($extension, $allowedExts))) {
   if ($_FILES["file"]["error"] > 0) {
-    echo "ERROR! Codigo del error: " . $_FILES["file"]["error"] . "<br>";
+    echo "ERROR. Codigo del error: " . $_FILES["file"]["error"] . "<br>";
+    echo "<script type= 'text/javascript'>alert('ERROR. Codigo del error: " . $_FILES["file"]["error"] . "<br>');</script>";
   } else {
- #   echo "Upload: " . $_FILES["file"]["name"] . "<br>";
-  #  echo "Type: " . $_FILES["file"]["type"] . "<br>";
-  #  echo "Size: " . ($_FILES["file"]["size"] / 1024) . " kB<br>";
-  #  echo "Temp file: " . $_FILES["file"]["tmp_name"] . "<br>";
     if (file_exists("upload/" . $_FILES["file"]["name"])) {
-      echo $_FILES["file"]["name"] . " el archivo ya existe. Borrarlo de upload/";
-#      unlink("upload/" . $_FILES["file"]["name"]);
+      echo $_FILES["file"]["name"] . " el archivo ya existe. Se borra de upload/" + " <br>";
+      unlink("upload/" . $_FILES["file"]["name"]);
+      move_uploaded_file($_FILES["file"]["tmp_name"],
+      "upload/" . $_FILES["file"]["name"]);
     } else {
       move_uploaded_file($_FILES["file"]["tmp_name"],
       "upload/" . $_FILES["file"]["name"]);
- #     echo "Se guarda el archivo en: " . "upload/" . $_FILES["file"]["name"];
     }
     $arrayPlanilla = csv2array("upload/" . $_FILES["file"]["name"]);
     $conexion = new Connection;
     $conn = $conexion->getConnection();
     planillaFiltrada($arrayPlanilla, $conn);
     unlink("upload/" . $_FILES["file"]["name"]);
-  
+    
+    echo "<script type= 'text/javascript'>alert('Datos actualizados');</script>";
   }
 } else {
   echo "Por favor suba un archivo en formato CSV, lo puede conseguir exportandolo desde LibreOffice";
+  echo "<script type= 'text/javascript'>alert('Por favor suba un archivo en formato CSV, lo puede conseguir exportandolo desde LibreOffice');</script>";
 }
+/*echo "<SCRIPT type='text/javascript'>
+window.location.replace(\"modificaciones.php\");
+</SCRIPT>"; */
 ?> 

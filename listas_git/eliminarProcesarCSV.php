@@ -93,11 +93,8 @@ function borrarLineaEnBD($stringLinea,$cabecera,$dbh) {
       die("Debe haber un campo CI en la cabecera del archivo");
     }
     $ci = $lineaArray[$posCI];
-
-    //$stringLinea = fixNullValues($stringLinea);
     
     $sql = "DELETE FROM docente where ciDocente=$ci";
-    echo $sql;
     $colField = $dbh->prepare($sql);
     $colField->execute();
     
@@ -120,13 +117,9 @@ function borrarLineaEnBD($stringLinea,$cabecera,$dbh) {
     $sql = "DELETE FROM persona where ci=$ci";
     $colField = $dbh->prepare($sql);
     $colField->execute();
-    
-    echo $sql;
 }
-function planillaFiltrada($arrayPlanilla,$dbh) {
-  
-  
 
+function planillaFiltrada($arrayPlanilla,$dbh) {
   $resultadoRepetidos = array();
   $resultadoSinMails = array();
   $cabecera = $arrayPlanilla[0];
@@ -137,7 +130,7 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
   $cabecera = str_replace('"', '', $cabecera);
 
   $posCedula = buscarPosCI($cabecera);
-  if ($posCedula==-1) { //En vez de chequear cabecera solo vemos que tengamos al menos la cedula para eliminar
+  if ($posCedula==-1) { //Chequeamos que tenga al menos el campo de la cedula para eliminar
     die("Debe haber un campo ci en la cabecera del archivo");
   }
   $arrayPlanillaCopia = clonarArray($arrayPlanilla);
@@ -147,11 +140,7 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
     if ($lineaStringPlanilla=="") {
        continue;
     }
-
     $arrayLinea = str_getcsv($lineaStringPlanilla, ',', '"');
-
-#string2array($lineaStringPlanilla);
-
     $cedula = $arrayLinea[$posCedula];
     $ocurrencias = 0;
     if ($cedula=="") {
@@ -183,38 +172,37 @@ function planillaFiltrada($arrayPlanilla,$dbh) {
     }
   } 
 }
-
-#mkdir("/upload", 0775);
 $allowedExts = array("csv");
 $temp = explode(".", $_FILES["file"]["name"]);
 $extension = end($temp);
-
-#unlink("upload/" . $_FILES["file"]["name"]);
-
-if (($_FILES["file"]["type"] == "text/csv") && (in_array($extension, $allowedExts))) {
+$mimes = array('application/vnd.ms-excel','text/plain','text/csv','text/tsv');
+if ((in_array($_FILES['file']['type'],$mimes)) && (in_array($extension, $allowedExts))) {
   if ($_FILES["file"]["error"] > 0) {
-    echo "ERROR! Codigo del error: " . $_FILES["file"]["error"] . "<br>";
+    echo "ERROR. Codigo del error: " . $_FILES["file"]["error"] . "<br>";
+    echo "<script type= 'text/javascript'>alert('ERROR. Codigo del error: " . $_FILES["file"]["error"] . "<br>');</script>";
   } else {
- #   echo "Upload: " . $_FILES["file"]["name"] . "<br>";
-  #  echo "Type: " . $_FILES["file"]["type"] . "<br>";
-  #  echo "Size: " . ($_FILES["file"]["size"] / 1024) . " kB<br>";
-  #  echo "Temp file: " . $_FILES["file"]["tmp_name"] . "<br>";
     if (file_exists("upload/" . $_FILES["file"]["name"])) {
-      echo $_FILES["file"]["name"] . " el archivo ya existe. Borrarlo de upload/";
-#      unlink("upload/" . $_FILES["file"]["name"]);
+      echo $_FILES["file"]["name"] . " el archivo ya existe. Se borra de upload/" + " <br>";
+      unlink("upload/" . $_FILES["file"]["name"]);
+      move_uploaded_file($_FILES["file"]["tmp_name"],
+      "upload/" . $_FILES["file"]["name"]);
     } else {
       move_uploaded_file($_FILES["file"]["tmp_name"],
       "upload/" . $_FILES["file"]["name"]);
- #     echo "Se guarda el archivo en: " . "upload/" . $_FILES["file"]["name"];
     }
     $arrayPlanilla = csv2array("upload/" . $_FILES["file"]["name"]);
     $conexion = new Connection;
     $conn = $conexion->getConnection();
     planillaFiltrada($arrayPlanilla, $conn);
     unlink("upload/" . $_FILES["file"]["name"]);
-  
-   }
- } else {
-   echo "Por favor suba un archivo en formato CSV, lo puede conseguir exportandolo desde LibreOffice";
- }
+    
+    echo "<script type= 'text/javascript'>alert('Se han eliminado los registros');</script>"; //FIXME: hacer un contador que devuelva la cantidad de registros eliminados.
+  }
+} else {
+  echo "Por favor suba un archivo en formato CSV, lo puede conseguir exportandolo desde LibreOffice";
+  echo "<script type= 'text/javascript'>alert('Por favor suba un archivo en formato CSV, lo puede conseguir exportandolo desde LibreOffice');</script>";
+}
+echo "<SCRIPT type='text/javascript'>
+window.location.replace(\"bajas.php\");
+</SCRIPT>"; 
 ?>
